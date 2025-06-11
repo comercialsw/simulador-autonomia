@@ -51,21 +51,38 @@ def calcular_autonomia(modelo, peso_usuario, velocidade_media, terreno, carga_ad
     motor_power = modelos[modelo]["potencia"]
     wheel_size = modelos[modelo]["aro"]
     battery_capacity_wh = calcular_capacidade_bateria(modelos[modelo]["bateria"])
+
+    # Consumo base considerando autonomia já ajustada
     base_consumption = battery_capacity_wh / declared_autonomy
+
+    # Peso total
     standard_total_weight = vehicle_weight + 80
     total_weight = vehicle_weight + peso_usuario + carga_adicional
     weight_factor = total_weight / standard_total_weight if standard_total_weight > 0 else 1
+
+    # Terreno
     terrain_factor = 1
     if terreno == "moderado":
         terrain_factor = 1.1
     elif terreno == "morro":
         terrain_factor = 1.25
-    speed_factor = 1.1 if velocidade_media > 25 else 1
-    power_factor = 1 + (motor_power - 350) / 350 * 0.1 if motor_power > 350 else 1
-    wheel_factor = 1.1 if wheel_size < 10 else 1
+
+    # Velocidade média — fator de arrasto proporcional ao quadrado da razão
+    speed_factor = (velocidade_media / 25) ** 2 if velocidade_media > 25 else 1
+
+    # Potência — aumento limitado a 20%
+    power_factor = 1 + min((motor_power - 350) / 350 * 0.1, 0.2) if motor_power > 350 else 1
+
+    # Rodas maiores ajudam na eficiência
+    wheel_factor = 0.95 if wheel_size >= 10 else 1
+
+    # Consumo ajustado
     adjusted_consumption = base_consumption * weight_factor * terrain_factor * speed_factor * power_factor * wheel_factor
+
+    # Autonomia final
     autonomy = battery_capacity_wh / adjusted_consumption if adjusted_consumption > 0 else declared_autonomy
     return round(autonomy, 1)
+
 
 # --- Caixas/inputs em colunas para responsividade ---
 st.markdown("<hr>", unsafe_allow_html=True)
